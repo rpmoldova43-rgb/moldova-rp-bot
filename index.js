@@ -69,9 +69,9 @@ function buildEmbed(guild, cfg) {
 
   const embed = new EmbedBuilder()
     .setColor(0xff7a00)
-    .setAuthor({ name: "Moldova RP • Admin Panel", iconURL: thumb || undefined })
+    .setAuthor({ name: "Moldova Roleplay", iconURL: thumb || undefined })
     .setTitle("Linkuri Oficiale")
-    .setDescription("Accesează rapid resursele serverului folosind butoanele de mai jos.")
+    .setDescription("Accesează rapid informatiile serverului folosind butoanele de mai jos.")
     .addFields(
       { name: "🌐 Site", value: safeUrl(cfg.site) ? `[Deschide](${cfg.site})` : "❌ Nesetat", inline: true },
       { name: "🧩 Panel", value: safeUrl(cfg.panel) ? `[Deschide](${cfg.panel})` : "❌ Nesetat", inline: true },
@@ -109,7 +109,7 @@ function buildButtons(cfg) {
     row2.addComponents(new ButtonBuilder().setLabel("📜 Regulament").setStyle(ButtonStyle.Link).setURL(cfg.rules));
 
   if (safeUrl(cfg.donate))
-    row2.addComponents(new ButtonBuilder().setLabel("❤️ Donații").setStyle(ButtonStyle.Link).setURL(cfg.donate));
+    row2.addComponents(new ButtonBuilder().setLabel("💸 Donații").setStyle(ButtonStyle.Link).setURL(cfg.donate));
 
   const components = [];
   if (row1.components.length) components.push(row1);
@@ -220,3 +220,4 @@ client.on("interactionCreate", async interaction => {
 });
 
 client.login(process.env.DISCORD_TOKEN);
+
