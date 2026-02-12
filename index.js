@@ -78,7 +78,7 @@ function buildEmbed(guild, cfg) {
       { name: "💬 Discord", value: safeUrl(cfg.discord) ? `[Deschide](${cfg.discord})` : "❌ Nesetat", inline: true },
       { name: "📘 Wiki", value: safeUrl(cfg.wiki) ? `[Deschide](${cfg.wiki})` : "❌ Nesetat", inline: true },
       { name: "📜 Regulament", value: safeUrl(cfg.rules) ? `[Deschide](${cfg.rules})` : "❌ Nesetat", inline: true },
-      { name: "❤️ Donații", value: safeUrl(cfg.donate) ? `[Deschide](${cfg.donate})` : "❌ Nesetat", inline: true }
+      { name: "💸 Donații", value: safeUrl(cfg.donate) ? `[Deschide](${cfg.donate})` : "❌ Nesetat", inline: true }
     )
     .setFooter({ text: `Actualizat • ${new Date().toLocaleString("ro-RO")}` })
     .setTimestamp();
@@ -220,4 +220,5 @@ client.on("interactionCreate", async interaction => {
 });
 
 client.login(process.env.DISCORD_TOKEN);
+
 
