@@ -116,8 +116,10 @@ async function createPrivateApplicationChannel(guild, deptKey, member) {
         id: member.id,
         allow: [
           PermissionFlagsBits.ViewChannel,
+          PermissionFlagsBits.ReadMessageHistory
+        ],
+        deny: [
           PermissionFlagsBits.SendMessages,
-          PermissionFlagsBits.ReadMessageHistory,
           PermissionFlagsBits.AttachFiles,
           PermissionFlagsBits.EmbedLinks
         ],
