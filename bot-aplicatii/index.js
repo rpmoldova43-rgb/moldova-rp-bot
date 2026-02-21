@@ -1,5 +1,11 @@
-process.on('unhandledRejection', console.error);
-process.on('uncaughtException', console.error);
+process.on('unhandledRejection', (err) => {
+  console.error(err);
+  process.exit(1); // Railway auto-restart
+});
+process.on('uncaughtException', (err) => {
+  console.error(err);
+  process.exit(1); // Railway auto-restart
+});
 
 import 'dotenv/config';
 import {
@@ -35,17 +41,28 @@ const DEPT_COLOR = {
   ARMATA: 0xeb5757
 };
 
+/* ================= ENV (TRIM) + VALIDARE ================= */
+
+const STAFF_ROLE_ID = String(process.env.STAFF_ROLE_ID ?? '').trim();
+const APPLICATIONS_CATEGORY_ID = String(process.env.APPLICATIONS_CATEGORY_ID ?? '').trim();
+
 const DEPT_ROLE = {
-  POLITIE: process.env.POLICE_ROLE_ID,
-  MEDIC: process.env.MEDIC_ROLE_ID,
-  ARMATA: process.env.ARMY_ROLE_ID
+  POLITIE: String(process.env.POLICE_ROLE_ID ?? '').trim(),
+  MEDIC: String(process.env.MEDIC_ROLE_ID ?? '').trim(),
+  ARMATA: String(process.env.ARMY_ROLE_ID ?? '').trim()
 };
+
+function mustSnowflake(name, value) {
+  const v = String(value ?? '').trim();
+  if (!/^\d{17,20}$/.test(v)) throw new Error(`${name} invalid: "${value}"`);
+  return v;
+}
 
 /* ================= PERMISSION CHECK ================= */
 
 function isDecisionAllowed(member) {
   return (
-    member.roles.cache.has(process.env.STAFF_ROLE_ID) ||
+    member.roles.cache.has(STAFF_ROLE_ID) ||
     member.permissions.has(PermissionsBitField.Flags.Administrator)
   );
 }
@@ -61,20 +78,29 @@ function slugify(str) {
 }
 
 async function getMe(guild) {
-  // nu te baza pe cache (guild.members.me poate fi null)
   return guild.members.me ?? (await guild.members.fetchMe());
 }
 
 async function createPrivateApplicationChannel(guild, deptKey, member) {
-  const categoryId = process.env.APPLICATIONS_CATEGORY_ID;
-  if (!categoryId) throw new Error('Lipsește APPLICATIONS_CATEGORY_ID în .env');
+  const categoryId = mustSnowflake('APPLICATIONS_CATEGORY_ID', APPLICATIONS_CATEGORY_ID);
+  const staffRoleId = mustSnowflake('STAFF_ROLE_ID', STAFF_ROLE_ID);
 
   // validează categoria
   const category = await guild.channels.fetch(categoryId).catch(() => null);
   if (!category) throw new Error(`APPLICATIONS_CATEGORY_ID invalid / categoria nu există: ${categoryId}`);
 
   const me = await getMe(guild);
-  const factionRoleId = DEPT_ROLE[deptKey];
+
+  const factionRoleIdRaw = String(DEPT_ROLE[deptKey] ?? '').trim();
+  const factionRoleId = factionRoleIdRaw ? mustSnowflake(`${deptKey}_ROLE_ID`, factionRoleIdRaw) : null;
+
+  // verifică dacă rolurile chiar există în server (altfel dă InvalidType)
+  if (!guild.roles.cache.has(staffRoleId)) {
+    throw new Error(`STAFF_ROLE_ID nu există în server: ${staffRoleId}`);
+  }
+  if (factionRoleId && !guild.roles.cache.has(factionRoleId)) {
+    throw new Error(`${deptKey}_ROLE_ID nu există în server: ${factionRoleId}`);
+  }
 
   const channelName = slugify(`aplicatie-${deptKey}-${member.user.username}`);
 
@@ -82,7 +108,6 @@ async function createPrivateApplicationChannel(guild, deptKey, member) {
     name: channelName,
     type: ChannelType.GuildText,
     parent: categoryId,
-    // topic simplu pentru debug
     topic: `Aplicație ${deptKey} | user:${member.id}`,
     permissionOverwrites: [
       { id: guild.roles.everyone.id, deny: [PermissionFlagsBits.ViewChannel] },
@@ -111,7 +136,7 @@ async function createPrivateApplicationChannel(guild, deptKey, member) {
         : []),
 
       {
-        id: process.env.STAFF_ROLE_ID,
+        id: staffRoleId,
         allow: [
           PermissionFlagsBits.ViewChannel,
           PermissionFlagsBits.SendMessages,
@@ -135,7 +160,8 @@ async function createPrivateApplicationChannel(guild, deptKey, member) {
 
   return channel;
 }
-/* ================= AUTO DELETE 30H ================= */
+
+/* ================= AUTO DELETE 24H ================= */
 
 const AUTO_DELETE_HOURS = 24;
 const AUTO_DELETE_MS = AUTO_DELETE_HOURS * 60 * 60 * 1000;
@@ -149,16 +175,18 @@ function scheduleAutoDelete(channel) {
     }
   }, AUTO_DELETE_MS);
 }
+
 /* ================= SEND APPLICATION ================= */
 
 async function sendApplicationToLog(guild, deptKey, applicantUser, data, privateChannelId) {
   const logChannelMap = {
-    POLITIE: process.env.POLICE_LOG_CHANNEL_ID,
-    MEDIC: process.env.MEDIC_LOG_CHANNEL_ID,
-    ARMATA: process.env.ARMY_LOG_CHANNEL_ID
+    POLITIE: String(process.env.POLICE_LOG_CHANNEL_ID ?? '').trim(),
+    MEDIC: String(process.env.MEDIC_LOG_CHANNEL_ID ?? '').trim(),
+    ARMATA: String(process.env.ARMY_LOG_CHANNEL_ID ?? '').trim()
   };
 
-  const logCh = await guild.channels.fetch(logChannelMap[deptKey]).catch(() => null);
+  const logChannelId = mustSnowflake(`${deptKey}_LOG_CHANNEL_ID`, logChannelMap[deptKey]);
+  const logCh = await guild.channels.fetch(logChannelId).catch(() => null);
   if (!logCh) throw new Error(`Log channel missing pentru ${deptKey}. Verifică *_LOG_CHANNEL_ID în .env`);
 
   const embed = new EmbedBuilder()
@@ -189,10 +217,11 @@ async function sendApplicationToLog(guild, deptKey, applicantUser, data, private
       .setEmoji('❌')
   );
 
-  // 🔔 TAG automat la rolul facțiunii (Poliție / Medic / Armată)
-  const roleIdToPing = DEPT_ROLE[deptKey];
+  // 🔔 TAG automat la rolul facțiunii (doar dacă e valid și există)
+  const roleIdToPingRaw = String(DEPT_ROLE[deptKey] ?? '').trim();
+  const roleIdToPing = roleIdToPingRaw && /^\d{17,20}$/.test(roleIdToPingRaw) ? roleIdToPingRaw : null;
 
-  if (roleIdToPing) {
+  if (roleIdToPing && guild.roles.cache.has(roleIdToPing)) {
     await logCh.send({
       content: `📢 <@&${roleIdToPing}> Ai o aplicație nouă la **${DEPT_NAME[deptKey]}**!`,
       allowedMentions: { roles: [roleIdToPing] }
@@ -234,47 +263,47 @@ client.on('interactionCreate', async interaction => {
           .setTitle(`Aplicație – ${DEPT_NAME[deptKey]}`);
 
         modal.addComponents(
-        new ActionRowBuilder().addComponents(
-          new TextInputBuilder()
-            .setCustomId('name_age')
-            .setLabel('Nume RP + Vârstă')
-            .setPlaceholder('Ex: Andrei Popescu - 24 ani')
-            .setStyle(TextInputStyle.Short)
-            .setRequired(true)
-        ),
-        new ActionRowBuilder().addComponents(
-          new TextInputBuilder()
-            .setCustomId('experience')
-            .setLabel('Experiență RP')
-            .setPlaceholder('Ex: 2 ani experiență pe servere RP, fost agent de poliție...')
-            .setStyle(TextInputStyle.Paragraph)
-            .setRequired(true)
-        ),
-        new ActionRowBuilder().addComponents(
-          new TextInputBuilder()
-            .setCustomId('schedule')
-            .setLabel('Program')
-            .setPlaceholder('Ex: Luni-Vineri 18:00-23:00')
-            .setStyle(TextInputStyle.Short)
-            .setRequired(true)
-        ),
-        new ActionRowBuilder().addComponents(
-          new TextInputBuilder()
-            .setCustomId('why')
-            .setLabel('Motivație')
-            .setPlaceholder('Ex: Doresc să contribui la menținerea ordinii pe server...')
-            .setStyle(TextInputStyle.Paragraph)
-            .setRequired(true)
-        ),
-        new ActionRowBuilder().addComponents(
-          new TextInputBuilder()
-            .setCustomId('contact')
-            .setLabel('Număr telefon')
-            .setPlaceholder('Ex: 079123456')
-            .setStyle(TextInputStyle.Short)
-            .setRequired(true)
-        )
-      );
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder()
+              .setCustomId('name_age')
+              .setLabel('Nume RP + Vârstă')
+              .setPlaceholder('Ex: Andrei Popescu - 24 ani')
+              .setStyle(TextInputStyle.Short)
+              .setRequired(true)
+          ),
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder()
+              .setCustomId('experience')
+              .setLabel('Experiență RP')
+              .setPlaceholder('Ex: 2 ani experiență pe servere RP, fost agent de poliție...')
+              .setStyle(TextInputStyle.Paragraph)
+              .setRequired(true)
+          ),
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder()
+              .setCustomId('schedule')
+              .setLabel('Program')
+              .setPlaceholder('Ex: Luni-Vineri 18:00-23:00')
+              .setStyle(TextInputStyle.Short)
+              .setRequired(true)
+          ),
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder()
+              .setCustomId('why')
+              .setLabel('Motivație')
+              .setPlaceholder('Ex: Doresc să contribui la menținerea ordinii pe server...')
+              .setStyle(TextInputStyle.Paragraph)
+              .setRequired(true)
+          ),
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder()
+              .setCustomId('contact')
+              .setLabel('Număr telefon')
+              .setPlaceholder('Ex: 079123456')
+              .setStyle(TextInputStyle.Short)
+              .setRequired(true)
+          )
+        );
 
         return interaction.showModal(modal);
       }
@@ -289,7 +318,6 @@ client.on('interactionCreate', async interaction => {
         const [action, deptKey, userId] = interaction.customId.split(':');
         const accepted = action === 'app_accept';
 
-        // update embed in log
         const embed = EmbedBuilder.from(interaction.message.embeds[0])
           .setColor(DEPT_COLOR[deptKey]);
 
@@ -319,20 +347,19 @@ client.on('interactionCreate', async interaction => {
         const decisionText = accepted
           ? `✅ **Aplicația ta la ${DEPT_NAME[deptKey]} a fost ACCEPTATĂ!**
 
-        Felicitări! 🎉 În curând vei fi contactat **IC** pentru următorii pași ai procesului de recrutare.  
-        Te rugăm să fii disponibil și atent la mesajele primite.
+Felicitări! 🎉 În curând vei fi contactat **IC** pentru următorii pași ai procesului de recrutare.
+Te rugăm să fii disponibil și atent la mesajele primite.
 
-        ⏳ Dacă în termen de **24 de ore** nu ești contactat IC, te rugăm să revii cu o nouă aplicație.
+⏳ Dacă în termen de **24 de ore** nu ești contactat IC, te rugăm să revii cu o nouă aplicație.
 
-        Îți urăm mult succes în continuare! 🚔`
+Îți urăm mult succes în continuare! 🚔`
           : `❌ **Aplicația ta la ${DEPT_NAME[deptKey]} a fost RESPINSĂ.**
 
-        Momentan cererea ta nu a fost aprobată.  
-        Te încurajăm să îți îmbunătățești aplicația și să revii cu o nouă cerere în viitor.
+Momentan cererea ta nu a fost aprobată.
+Te încurajăm să îți îmbunătățești aplicația și să revii cu o nouă cerere în viitor.
 
-        Mult succes! 🍀`;
+Mult succes! 🍀`;
 
-        // ✅ ia canalul privat din footer
         const footerText = interaction.message.embeds?.[0]?.footer?.text || '';
         const match = footerText.match(/privateChannelId:(\d{17,20})/);
         const privateChannelId = match?.[1];
@@ -347,7 +374,6 @@ client.on('interactionCreate', async interaction => {
           }
         }
 
-        // DM (opțional)
         const user = await client.users.fetch(userId).catch(() => null);
         if (user) await user.send(decisionText).catch(() => {});
 
@@ -358,7 +384,7 @@ client.on('interactionCreate', async interaction => {
     /* ================= MODAL SUBMIT ================= */
 
     if (interaction.isModalSubmit() && interaction.customId.startsWith('apply_')) {
-      await interaction.deferReply({ ephemeral: true }); // important: evită timeout
+      await interaction.deferReply({ ephemeral: true });
 
       const deptKey = interaction.customId.replace('apply_', '');
 
@@ -370,33 +396,31 @@ client.on('interactionCreate', async interaction => {
         contact: interaction.fields.getTextInputValue('contact')
       };
 
-    // 🔒 validare număr telefon (7–10 cifre)
-    if (!/^[0-9]{7,7}$/.test(data.contact)) {
-      return interaction.editReply({
-        content: '❌ Numărul de telefon trebuie să conțină doar cifre și să fie format doar din 7 caractere.',
-      });
-    }
+      // 🔒 validare număr telefon (exact 7 cifre)
+      if (!/^[0-9]{7}$/.test(data.contact)) {
+        return interaction.editReply({
+          content: '❌ Numărul de telefon trebuie să conțină doar cifre și să fie format din exact 7 caractere.',
+        });
+      }
 
-      // 1) creează canal privat
       const privateChannel = await createPrivateApplicationChannel(guild, deptKey, interaction.member);
       scheduleAutoDelete(privateChannel);
-      // 2) trimite mesaj în canalul privat
+
       await privateChannel.send(
         `📄 Salut <@${interaction.user.id}>!\n` +
         `Aplicația ta la **${DEPT_NAME[deptKey]}** a fost trimisă.\n\n` +
         `📌 Vei primi un răspuns aici dacă cererea ta va fi acceptată sau respinsă. Fii pe fază! 🔔`
       );
 
-      // 3) trimite aplicația în log (cu ID canal privat)
       await sendApplicationToLog(guild, deptKey, interaction.user, data, privateChannel.id);
 
-      // 4) confirmare către user
       return interaction.editReply({
         content: `✅ Ți-am creat canal privat: ${privateChannel}`
       });
     }
 
     /* ================= /linkuri ================= */
+
     if (interaction.isChatInputCommand() && interaction.commandName === 'linkuri') {
       const embed = new EmbedBuilder()
         .setTitle('Moldova Roleplay')
@@ -422,7 +446,7 @@ client.on('interactionCreate', async interaction => {
 
     const msg =
       `⚠️ Eroare: ${err?.message || 'necunoscut'}\n` +
-      `Verifică: APPLICATIONS_CATEGORY_ID + permisiuni bot în categoria aplicațiilor (Manage Channels).`;
+      `Verifică: APPLICATIONS_CATEGORY_ID + rolurile/ID-urile + permisiuni bot (Manage Channels).`;
 
     if (interaction.isRepliable() && !interaction.replied && !interaction.deferred) {
       await interaction.reply({ content: msg, ephemeral: true }).catch(() => {});
