@@ -32,13 +32,15 @@ const client = new Client({
 const DEPT_NAME = {
   POLITIE: 'Poliție',
   MEDIC: 'Medic',
-  ARMATA: 'Armată'
+  ARMATA: 'Armată',
+  PRIMARIE: 'Primărie'
 };
 
 const DEPT_COLOR = {
   POLITIE: 0x2f80ed,
   MEDIC: 0x27ae60,
-  ARMATA: 0xeb5757
+  ARMATA: 0xeb5757,
+  PRIMARIE: 0xf2c94c
 };
 
 /* ================= ENV (TRIM) + VALIDARE ================= */
@@ -49,7 +51,8 @@ const APPLICATIONS_CATEGORY_ID = String(process.env.APPLICATIONS_CATEGORY_ID ?? 
 const DEPT_ROLE = {
   POLITIE: String(process.env.POLICE_ROLE_ID ?? '').trim(),
   MEDIC: String(process.env.MEDIC_ROLE_ID ?? '').trim(),
-  ARMATA: String(process.env.ARMY_ROLE_ID ?? '').trim()
+  ARMATA: String(process.env.ARMY_ROLE_ID ?? '').trim(),
+  PRIMARIE: String(process.env.PRIMARIE_ROLE_ID ?? '').trim()
 };
 
 function mustSnowflake(name, value) {
@@ -184,7 +187,8 @@ async function sendApplicationToLog(guild, deptKey, applicantUser, data, private
   const logChannelMap = {
     POLITIE: String(process.env.POLICE_LOG_CHANNEL_ID ?? '').trim(),
     MEDIC: String(process.env.MEDIC_LOG_CHANNEL_ID ?? '').trim(),
-    ARMATA: String(process.env.ARMY_LOG_CHANNEL_ID ?? '').trim()
+    ARMATA: String(process.env.ARMY_LOG_CHANNEL_ID ?? '').trim(),
+    PRIMARIE: String(process.env.PRIMARIE_LOG_CHANNEL_ID ?? '').trim()
   };
 
   const logChannelId = mustSnowflake(`${deptKey}_LOG_CHANNEL_ID`, logChannelMap[deptKey]);
@@ -251,11 +255,12 @@ client.on('interactionCreate', async interaction => {
     if (interaction.isButton()) {
 
       // ===== APPLY BUTTONS =====
-      if (['apply_police', 'apply_medic', 'apply_army'].includes(interaction.customId)) {
+      if (['apply_police', 'apply_medic', 'apply_army', 'apply_primarie'].includes(interaction.customId)) {
         const map = {
           apply_police: 'POLITIE',
           apply_medic: 'MEDIC',
-          apply_army: 'ARMATA'
+          apply_army: 'ARMATA',
+          apply_primarie: 'PRIMARIE'
         };
 
         const deptKey = map[interaction.customId];
@@ -437,7 +442,8 @@ Mult succes! 🍀`;
       const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId('apply_police').setLabel('Aplicație Poliție').setEmoji('🚔').setStyle(ButtonStyle.Primary),
         new ButtonBuilder().setCustomId('apply_medic').setLabel('Aplicație Medic').setEmoji('🏥').setStyle(ButtonStyle.Success),
-        new ButtonBuilder().setCustomId('apply_army').setLabel('Aplicație Armată').setEmoji('🪖').setStyle(ButtonStyle.Danger)
+        new ButtonBuilder().setCustomId('apply_army').setLabel('Aplicație Armată').setEmoji('🪖').setStyle(ButtonStyle.Danger),
+        new ButtonBuilder().setCustomId('apply_primarie').setLabel('Aplicație Primărie').setEmoji('🏛️').setStyle(ButtonStyle.Secondary)
       );
 
       return interaction.reply({ embeds: [embed], components: [row] });
