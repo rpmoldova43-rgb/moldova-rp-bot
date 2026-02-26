@@ -1,11 +1,6 @@
-process.on('unhandledRejection', (err) => {
-  console.error(err);
-  process.exit(1); // Railway auto-restart
-});
-process.on('uncaughtException', (err) => {
-  console.error(err);
-  process.exit(1); // Railway auto-restart
-});
+// ====================== STABILITY (NU MAI OMORÎ BOTUL) ======================
+process.on('unhandledRejection', (err) => console.error('unhandledRejection:', err));
+process.on('uncaughtException', (err) => console.error('uncaughtException:', err));
 
 import 'dotenv/config';
 import {
@@ -65,7 +60,7 @@ function mustSnowflake(name, value) {
 
 function isDecisionAllowed(member) {
   return (
-    member.roles.cache.has(STAFF_ROLE_ID) ||
+    (STAFF_ROLE_ID && member.roles.cache.has(STAFF_ROLE_ID)) ||
     member.permissions.has(PermissionsBitField.Flags.Administrator)
   );
 }
@@ -97,7 +92,7 @@ async function createPrivateApplicationChannel(guild, deptKey, member) {
   const factionRoleIdRaw = String(DEPT_ROLE[deptKey] ?? '').trim();
   const factionRoleId = factionRoleIdRaw ? mustSnowflake(`${deptKey}_ROLE_ID`, factionRoleIdRaw) : null;
 
-  // verifică dacă rolurile chiar există în server (altfel dă InvalidType)
+  // verifică dacă rolurile chiar există în server
   if (!guild.roles.cache.has(staffRoleId)) {
     throw new Error(`STAFF_ROLE_ID nu există în server: ${staffRoleId}`);
   }
@@ -194,6 +189,7 @@ async function sendApplicationToLog(guild, deptKey, applicantUser, data, private
   const logChannelId = mustSnowflake(`${deptKey}_LOG_CHANNEL_ID`, logChannelMap[deptKey]);
   const logCh = await guild.channels.fetch(logChannelId).catch(() => null);
   if (!logCh) throw new Error(`Log channel missing pentru ${deptKey}. Verifică *_LOG_CHANNEL_ID în .env`);
+  if (!logCh.isTextBased()) throw new Error(`Log channel pentru ${deptKey} nu este text channel.`);
 
   const embed = new EmbedBuilder()
     .setTitle(`📄 Aplicație – ${DEPT_NAME[deptKey]}`)
@@ -305,8 +301,8 @@ client.on('interactionCreate', async interaction => {
           new ActionRowBuilder().addComponents(
             new TextInputBuilder()
               .setCustomId('contact')
-              .setLabel('Număr telefon')
-              .setPlaceholder('Ex: 079123456')
+              .setLabel('Număr telefon (7 cifre)')
+              .setPlaceholder('Ex: 0791234')
               .setStyle(TextInputStyle.Short)
               .setRequired(true)
           )
@@ -326,7 +322,7 @@ client.on('interactionCreate', async interaction => {
         const accepted = action === 'app_accept';
 
         const embed = EmbedBuilder.from(interaction.message.embeds[0])
-          .setColor(DEPT_COLOR[deptKey]);
+          .setColor(DEPT_COLOR[deptKey] ?? 0xffffff);
 
         embed.data.fields = (embed.data.fields || []).filter(f => f.name !== 'Status');
         embed.data.fields.unshift({
@@ -354,12 +350,12 @@ client.on('interactionCreate', async interaction => {
         const decisionText = accepted
           ? `✅ **Aplicația ta la ${DEPT_NAME[deptKey]} a fost ACCEPTATĂ!**
 
-Felicitări! 🎉 În curând vei fi contactat **IC** pentru următorii pași ai procesului de recrutare.
+Felicitări! 🎉 În curând vei fi contactat **IC** pentru următorii pași.
 Te rugăm să fii disponibil și atent la mesajele primite.
 
 ⏳ Dacă în termen de **24 de ore** nu ești contactat IC, te rugăm să revii cu o nouă aplicație.
 
-Îți urăm mult succes în continuare! 🚔`
+Mult succes!`
           : `❌ **Aplicația ta la ${DEPT_NAME[deptKey]} a fost RESPINSĂ.**
 
 Momentan cererea ta nu a fost aprobată.
@@ -404,7 +400,7 @@ Mult succes! 🍀`;
       };
 
       // 🔒 validare număr telefon (exact 7 cifre)
-      if (!/^[0-9]{7}$/.test(data.contact)) {
+      if (!/^[0-9]{7}$/.test(String(data.contact ?? '').trim())) {
         return interaction.editReply({
           content: '❌ Numărul de telefon trebuie să conțină doar cifre și să fie format din exact 7 caractere.',
         });
@@ -417,7 +413,7 @@ Mult succes! 🍀`;
         `📄 Salut <@${interaction.user.id}>!\n` +
         `Aplicația ta la **${DEPT_NAME[deptKey]}** a fost trimisă.\n\n` +
         `📌 Vei primi un răspuns aici dacă cererea ta va fi acceptată sau respinsă. Fii pe fază! 🔔`
-      );
+      ).catch(() => {});
 
       await sendApplicationToLog(guild, deptKey, interaction.user, data, privateChannel.id);
 
@@ -436,8 +432,8 @@ Mult succes! 🍀`;
           '📌 Completează corect toate câmpurile. Vei primi răspuns în privat.'
         )
         .setColor(0xff8c00)
-        .setThumbnail(process.env.BRAND_THUMB)
-        .setImage(process.env.BRAND_IMAGE);
+        .setThumbnail(process.env.BRAND_THUMB ?? null)
+        .setImage(process.env.BRAND_IMAGE ?? null);
 
       const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId('apply_police').setLabel('Aplicație Poliție').setEmoji('🚔').setStyle(ButtonStyle.Primary),
@@ -464,4 +460,42 @@ Mult succes! 🍀`;
   }
 });
 
-client.login(process.env.DISCORD_TOKEN);
+/* ================= BOOT (CHECK ENV + LOGIN) ================= */
+
+async function main() {
+  const token = String(process.env.DISCORD_TOKEN ?? '').trim();
+
+  console.log('ENV CHECK:', {
+    hasToken: Boolean(token),
+    tokenLen: token.length,
+    hasCategory: Boolean(String(process.env.APPLICATIONS_CATEGORY_ID ?? '').trim()),
+    hasStaffRole: Boolean(String(process.env.STAFF_ROLE_ID ?? '').trim()),
+    hasPrimarieLog: Boolean(String(process.env.PRIMARIE_LOG_CHANNEL_ID ?? '').trim()),
+  });
+
+  if (!token) throw new Error('DISCORD_TOKEN lipsește în Railway Variables!');
+
+  await client.login(token);
+}
+
+main().catch((e) => {
+  console.error('BOOT ERROR:', e);
+});
+
+/*
+În Railway Variables (.env):
+DISCORD_TOKEN=...
+STAFF_ROLE_ID=...
+APPLICATIONS_CATEGORY_ID=...
+
+POLICE_LOG_CHANNEL_ID=...
+MEDIC_LOG_CHANNEL_ID=...
+ARMY_LOG_CHANNEL_ID=...
+PRIMARIE_LOG_CHANNEL_ID=...
+
+(opțional)
+POLICE_ROLE_ID=...
+MEDIC_ROLE_ID=...
+ARMY_ROLE_ID=...
+PRIMARIE_ROLE_ID=...
+*/
