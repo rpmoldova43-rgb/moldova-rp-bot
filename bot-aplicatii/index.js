@@ -269,7 +269,7 @@ client.on('interactionCreate', async interaction => {
           new ActionRowBuilder().addComponents(
             new TextInputBuilder()
               .setCustomId('name_age')
-              .setLabel('Nume RP + Vârstă')
+              .setLabel('Nume (IC) + Vârstă (OOC)')
               .setPlaceholder('Ex: Andrei Popescu - 24 ani')
               .setStyle(TextInputStyle.Short)
               .setRequired(true)
@@ -277,7 +277,7 @@ client.on('interactionCreate', async interaction => {
           new ActionRowBuilder().addComponents(
             new TextInputBuilder()
               .setCustomId('experience')
-              .setLabel('Experiență RP')
+              .setLabel('Experiență (IC)')
               .setPlaceholder('Ex: 2 ani experiență pe servere RP, fost agent de poliție...')
               .setStyle(TextInputStyle.Paragraph)
               .setRequired(true)
@@ -285,7 +285,7 @@ client.on('interactionCreate', async interaction => {
           new ActionRowBuilder().addComponents(
             new TextInputBuilder()
               .setCustomId('schedule')
-              .setLabel('Program')
+              .setLabel('Program (OOC)')
               .setPlaceholder('Ex: Luni-Vineri 18:00-23:00')
               .setStyle(TextInputStyle.Short)
               .setRequired(true)
@@ -293,15 +293,15 @@ client.on('interactionCreate', async interaction => {
           new ActionRowBuilder().addComponents(
             new TextInputBuilder()
               .setCustomId('why')
-              .setLabel('Motivație')
-              .setPlaceholder('Ex: Doresc să contribui la menținerea ordinii pe server...')
+              .setLabel('Motivație (IC)')
+              .setPlaceholder('Ex: Doresc să contribui la menținerea ordinii publice pe oras')
               .setStyle(TextInputStyle.Paragraph)
               .setRequired(true)
           ),
           new ActionRowBuilder().addComponents(
             new TextInputBuilder()
               .setCustomId('contact')
-              .setLabel('Număr telefon (7 cifre)')
+              .setLabel('Număr telefon (IC) (7 cifre)')
               .setPlaceholder('Ex: 0791234')
               .setStyle(TextInputStyle.Short)
               .setRequired(true)
