@@ -35,7 +35,7 @@ const DEPT_COLOR = {
   POLITIE: 0x2f80ed,
   SHERIFF: 0x8b4513, // maro specific sheriff
   MEDIC: 0x27ae60,
-  PRIMARIE: 0xf2c94c
+  PRIMARIE: 0xFFD700
 };
 
 /* ================= ENV (TRIM) + VALIDARE ================= */
@@ -434,12 +434,12 @@ Mult succes! 🍀`;
         .setColor(0xff8c00)
         .setThumbnail(process.env.BRAND_THUMB ?? null)
         .setImage(process.env.BRAND_IMAGE ?? null);
-
+        
       const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId('apply_police').setLabel('Aplicație Poliție').setEmoji('🚔').setStyle(ButtonStyle.Primary),
-        new ButtonBuilder().setCustomId('apply_sheriff').setLabel('Aplicație Sheriff').setEmoji('🤠').setStyle(ButtonStyle.Secondary),
-        new ButtonBuilder().setCustomId('apply_medic').setLabel('Aplicație Medic').setEmoji('🏥').setStyle(ButtonStyle.Success),
-        new ButtonBuilder().setCustomId('apply_primarie').setLabel('Aplicație Primărie').setEmoji('🏛️').setStyle(ButtonStyle.Secondary)
+        new ButtonBuilder().setCustomId('apply_sheriff').setLabel('Aplicație Sheriff').setEmoji('🤠').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('apply_medic').setLabel('Aplicație Medic').setEmoji('🏥').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('apply_primarie').setLabel('Aplicație Primărie').setEmoji('🏛️').setStyle(ButtonStyle.Primary)
       );
 
       return interaction.reply({ embeds: [embed], components: [row] });
@@ -471,6 +471,7 @@ async function main() {
     hasCategory: Boolean(String(process.env.APPLICATIONS_CATEGORY_ID ?? '').trim()),
     hasStaffRole: Boolean(String(process.env.STAFF_ROLE_ID ?? '').trim()),
     hasPrimarieLog: Boolean(String(process.env.PRIMARIE_LOG_CHANNEL_ID ?? '').trim()),
+    hasSheriffLog: Boolean(String(process.env.SHERIFF_LOG_CHANNEL_ID ?? '').trim()),
   });
 
   if (!token) throw new Error('DISCORD_TOKEN lipsește în Railway Variables!');
