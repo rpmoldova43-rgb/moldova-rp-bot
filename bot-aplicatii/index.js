@@ -26,12 +26,14 @@ const client = new Client({
 
 const DEPT_NAME = {
   POLITIE: 'Poliție',
+  SHERIFF: 'Sheriff',
   MEDIC: 'Medic',
   PRIMARIE: 'Primărie'
 };
 
 const DEPT_COLOR = {
   POLITIE: 0x2f80ed,
+  SHERIFF: 0x8b4513, // maro specific sheriff
   MEDIC: 0x27ae60,
   PRIMARIE: 0xf2c94c
 };
@@ -43,6 +45,7 @@ const APPLICATIONS_CATEGORY_ID = String(process.env.APPLICATIONS_CATEGORY_ID ?? 
 
 const DEPT_ROLE = {
   POLITIE: String(process.env.POLICE_ROLE_ID ?? '').trim(),
+  SHERIFF: String(process.env.SHERIFF_ROLE_ID ?? '').trim(),
   MEDIC: String(process.env.MEDIC_ROLE_ID ?? '').trim(),
   PRIMARIE: String(process.env.PRIMARIE_ROLE_ID ?? '').trim()
 };
@@ -178,6 +181,7 @@ function scheduleAutoDelete(channel) {
 async function sendApplicationToLog(guild, deptKey, applicantUser, data, privateChannelId) {
   const logChannelMap = {
     POLITIE: String(process.env.POLICE_LOG_CHANNEL_ID ?? '').trim(),
+    SHERIFF: String(process.env.SHERIFF_LOG_CHANNEL_ID ?? '').trim(),
     MEDIC: String(process.env.MEDIC_LOG_CHANNEL_ID ?? '').trim(),
     PRIMARIE: String(process.env.PRIMARIE_LOG_CHANNEL_ID ?? '').trim()
   };
@@ -247,9 +251,10 @@ client.on('interactionCreate', async interaction => {
     if (interaction.isButton()) {
 
       // ===== APPLY BUTTONS =====
-      if (['apply_police', 'apply_medic', 'apply_primarie'].includes(interaction.customId)) {
+      if (['apply_police', 'apply_sheriff', 'apply_medic', 'apply_primarie'].includes(interaction.customId)) {
         const map = {
           apply_police: 'POLITIE',
+          apply_sheriff: 'SHERIFF',
           apply_medic: 'MEDIC',
           apply_primarie: 'PRIMARIE'
         };
@@ -432,6 +437,7 @@ Mult succes! 🍀`;
 
       const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId('apply_police').setLabel('Aplicație Poliție').setEmoji('🚔').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('apply_sheriff').setLabel('Aplicație Sheriff').setEmoji('🤠').setStyle(ButtonStyle.Secondary),
         new ButtonBuilder().setCustomId('apply_medic').setLabel('Aplicație Medic').setEmoji('🏥').setStyle(ButtonStyle.Success),
         new ButtonBuilder().setCustomId('apply_primarie').setLabel('Aplicație Primărie').setEmoji('🏛️').setStyle(ButtonStyle.Secondary)
       );
