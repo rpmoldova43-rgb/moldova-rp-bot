@@ -435,12 +435,31 @@ Mult succes! 🍀`;
         .setThumbnail(process.env.BRAND_THUMB ?? null)
         .setImage(process.env.BRAND_IMAGE ?? null);
         
-      const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('apply_police').setLabel('Aplicație Poliție').setEmoji('🚔').setStyle(ButtonStyle.Primary),
-        new ButtonBuilder().setCustomId('apply_sheriff').setLabel('Aplicație Sheriff').setEmoji('🤠').setStyle(ButtonStyle.Primary),
-        new ButtonBuilder().setCustomId('apply_medic').setLabel('Aplicație Medic').setEmoji('🏥').setStyle(ButtonStyle.Primary),
-        new ButtonBuilder().setCustomId('apply_primarie').setLabel('Aplicație Primărie').setEmoji('🏛️').setStyle(ButtonStyle.Primary)
-      );
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId('apply_police')
+        .setLabel('Aplicație Poliție')
+        .setEmoji('🚔')
+        .setStyle(ButtonStyle.Primary), // 🔵 ALBASTRU
+
+      new ButtonBuilder()
+        .setCustomId('apply_sheriff')
+        .setLabel('Aplicație Sheriff')
+        .setEmoji('🤠')
+        .setStyle(ButtonStyle.Secondary), // ⚫ GRI (cel mai apropiat de maro)
+
+      new ButtonBuilder()
+        .setCustomId('apply_medic')
+        .setLabel('Aplicație Medic')
+        .setEmoji('🏥')
+        .setStyle(ButtonStyle.Success), // 🟢 VERDE
+
+      new ButtonBuilder()
+        .setCustomId('apply_primarie')
+        .setLabel('Aplicație Primărie')
+        .setEmoji('👑')
+        .setStyle(ButtonStyle.Danger) // 🔴 ROȘU (cel mai apropiat de “important/auriu”)
+    );
 
       return interaction.reply({ embeds: [embed], components: [row] });
     }
